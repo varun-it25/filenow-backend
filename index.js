@@ -46,7 +46,7 @@ app.post("/upload", upload.single("file"), (req, res) => {
   const file = req.file;
 
   if (file) {
-    const fileUrl = `http://localhost:${PORT}/${file.filename}`;
+    const fileUrl = `https://filenow.onrender.com/${file.filename}`;
     return res.status(200).json({ message: "File uploaded successfully.", url: fileUrl });
   }
 
