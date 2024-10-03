@@ -1,16 +1,33 @@
 import express from "express";
 import multer from "multer";
 import crypto from "crypto";
+import cors from "cors";
 import fs from "fs";
 import dotenv from "dotenv";
+import { connection } from "./connection.js";
+import { fileModel } from "./Model/fileModel.js";
 
 dotenv.config();
 
 const PORT = process.env.PORT || 8000;
+const DB_STR = process.env.DB_STR;
 const app = express();
 
+connection(DB_STR);
+
 app.use(express.static("./store"));
+app.use(cors());
 app.use(express.json());
+
+function formatFileSize(bytes) {
+  if (bytes < 1024) {
+    return `${bytes.toFixed(2)} bytes`;
+  } else if (bytes < 1048576) {
+    return `${(bytes / 1024).toFixed(2)} KB`;
+  } else {
+    return `${(bytes / 1048576).toFixed(2)} MB`;
+  }
+}
 
 function getFileExtension(file) {
   return file.originalname.split(".").pop();
@@ -18,15 +35,16 @@ function getFileExtension(file) {
 
 function createUniqueFilename(file) {
   const existingFiles = fs.readdirSync("./store");
-  let uniqueFilename;
   const extension = getFileExtension(file);
+  let uniqueFilename;
 
   do {
     const randomValue = Math.random().toString();
     const timestamp = Date.now();
     const hash = crypto.createHash("sha256").update(`${randomValue}${file.originalname}${timestamp}`).digest("hex").substring(0, 6);
     uniqueFilename = `${hash}.${extension}`;
-  } while (existingFiles.includes(uniqueFilename));
+  }
+  while (existingFiles.includes(uniqueFilename));
 
   return uniqueFilename;
 }
@@ -42,12 +60,34 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-app.post("/upload", upload.single("file"), (req, res) => {
+app.post("/upload", upload.single("file"), async (req, res) => {
   const file = req.file;
 
   if (file) {
     const fileUrl = `https://filenow.onrender.com/${file.filename}`;
-    return res.status(200).json({ message: "File uploaded successfully.", url: fileUrl });
+    const fileSizeInBytes = file.size;
+    const formattedSize = formatFileSize(fileSizeInBytes);
+    const sizeValue = parseFloat(formattedSize.split(" ")[0]);
+    const unit = formattedSize.split(" ").pop();
+
+    if (sizeValue > 10 && unit === "MB") {
+      fs.unlinkSync(`./store/${file.filename}`);
+      return res.status(400).json({ message: "File size is too large." });
+    } else {
+      const userData = {
+        file_name: file.filename,
+        file_url: fileUrl,
+        file_size: formattedSize,
+      };
+
+      const data = new fileModel(userData);
+      await data.save();
+
+      return res.status(200).json({
+        message: "File uploaded successfully.",
+        url: fileUrl,
+      });
+    }
   }
 
   res.status(400).json({ message: "Upload failed!" });
