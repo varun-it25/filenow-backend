@@ -43,8 +43,7 @@ function createUniqueFilename(file) {
     const timestamp = Date.now();
     const hash = crypto.createHash("sha256").update(`${randomValue}${file.originalname}${timestamp}`).digest("hex").substring(0, 6);
     uniqueFilename = `${hash}.${extension}`;
-  }
-  while (existingFiles.includes(uniqueFilename));
+  } while (existingFiles.includes(uniqueFilename));
 
   return uniqueFilename;
 }
@@ -65,6 +64,7 @@ app.post("/upload", upload.single("file"), async (req, res) => {
 
   if (file) {
     const fileUrl = `https://filenow.onrender.com/${file.filename}`;
+    const downloadUrl = `https://filenow.onrender.com/download/${file.filename}`;
     const fileSizeInBytes = file.size;
     const formattedSize = formatFileSize(fileSizeInBytes);
     const sizeValue = parseFloat(formattedSize.split(" ")[0]);
@@ -73,24 +73,36 @@ app.post("/upload", upload.single("file"), async (req, res) => {
     if (sizeValue > 10 && unit === "MB") {
       fs.unlinkSync(`./store/${file.filename}`);
       return res.status(400).json({ message: "File size is too large." });
-    } else {
-      const userData = {
-        file_name: file.filename,
-        file_url: fileUrl,
-        file_size: formattedSize,
-      };
-
+    }
+    
+    else {
+      const userData = { file_name: file.filename, file_size: formattedSize, file_url: fileUrl, download_url: downloadUrl };
       const data = new fileModel(userData);
       await data.save();
 
       return res.status(200).json({
         message: "File uploaded successfully.",
-        url: fileUrl,
+        file_url: fileUrl,
+        download_url: downloadUrl,
       });
     }
   }
 
   res.status(400).json({ message: "Upload failed!" });
+});
+
+app.get('/download/:filename', (req, res) => {
+  const { filename } = req.params;
+  
+  try {
+    if (fs.existsSync(`./store/${filename}`)) {
+      res.status(200).download(`./store/${ filename }`);
+    }  else {
+      res.status(404).send('File not found!');
+    }
+  } catch (err) {
+    res.status(500).send('An error occurred!');
+  }
 });
 
 app.listen(PORT, () => {
