@@ -5,6 +5,7 @@ import { connection } from "./connection.js";
 import { upload } from "./routes/upload.js";
 import { download } from "./routes/download.js";
 import { uploadMiddleware } from "./middlewares/upload.js";
+import fs from "fs";
 
 dotenv.config();
 
@@ -20,6 +21,10 @@ app.use(express.json());
 
 app.post("/upload", uploadMiddleware, upload);
 app.get('/download/:filename', download);
+app.get('/files', (req, res) => {
+    const files = fs.readdirSync('./store');
+    res.json({ files })
+});
 
 app.listen(PORT, () => {
   console.log(`Server is running on port: ${PORT}`);
