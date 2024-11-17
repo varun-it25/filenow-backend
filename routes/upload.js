@@ -5,8 +5,8 @@ export async function upload(req, res){
     const file = req.file;
   
     if (file) {
-      const fileUrl = `https://filenow.onrender.com/${file.filename}`;
-      const downloadUrl = `https://filenow.onrender.com/download/${file.filename}`;
+      const fileUrl = `https://filenow-production.up.railway.app/${file.filename}`;
+      const downloadUrl = `https://filenow-production.up.railway.app/${file.filename}`;
       const formattedSize = formatFileSize(file.size);
 
       const data = new fileModel({
